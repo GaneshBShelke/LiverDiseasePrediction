@@ -29,3 +29,6 @@ This dataset was uploades originally on the UCI ML Repository and is downloaded 
 
 We have used XGBoost library for training the prediction model. 
 Official documentation can be found here: https://github.com/dmlc/xgboost
+
+Also an introductory blog on XGBoost algorithm: https://towardsdatascience.com/https-medium-com-vishalmorde-xgboost-algorithm-long-she-may-rein-edd9f99be63d
+
