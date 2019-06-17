@@ -26,3 +26,6 @@ Columns:
 Acknowledgements
 
 This dataset was uploades originally on the UCI ML Repository and is downloaded from https://www.kaggle.com/uciml/indian-liver-patient-records.
+
+We have used XGBoost library for training the prediction model. 
+Official documentation can be found here: https://github.com/dmlc/xgboost
