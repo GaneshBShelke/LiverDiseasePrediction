@@ -1,0 +1,178 @@
+---
+title: "Liver Disease Prediction Report"
+author: "Ganesh Shelke"
+date: "07/06/2019"
+output:  
+  pdf_document : default
+  html_document : default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+This project shows use of machine learning and XGBoost (eXtreme Gradient Boosting) algorithm to predict liver disease risk in patients. 
+
+## Objective
+Patients with Liver disease have been continuously increasing because of excessive consumption of alcohol, inhale of harmful gases, intake of contaminated food, pickles and drugs. This dataset was used to evaluate prediction algorithms in an effort to reduce burden on doctors using XGBoost (eXtreme Gradient Boosting) algorithm.
+
+## The Dataset
+
+The data that we will be using has been sourced from https://www.kaggle.com/uciml/indian-liver-patient-records. This data set contains 416 liver patient records and 167 non liver patient records collected from North East of Andhra Pradesh, India. The "Dataset" column is a class label used to divide groups into liver patient (liver disease) or not (no disease). This data set contains 441 male patient records and 142 female patient records.
+Any patient whose age exceeded 89 is listed as being of age "90".
+
+##Libraries required:
+  
+  Libraries we have used are: caret, xgboost, methods
+```{r echo=FALSE}
+library(caret)
+library(xgboost)
+library(methods)
+```
+
+# Data analysis
+
+## Exploration
+
+Let's have a look at the features present in our dataset
+
+```{r echo=FALSE}
+data <- read.csv('data/indian_liver_patient.csv')
+names(data)
+```
+
+The last feature, 'Dataset', contains the label. 1 indicates a liver patient (disease) and 2 indicates a non-liver patient (no disease)
+
+The first 6 observations are:
+```{r}
+head(data)
+```
+
+A quick view into the entire data set using 'summary' function
+
+```{r}
+summary(data)
+```
+
+We see that the data is clean except one feature having missing values: Albumin_and_Globulin_Ratio.
+
+## Data Cleaning
+
+Replacing NAs in Albumin_and_Globulin_Ratio by it's mean value i.e. 0.9470639
+
+```{r echo=FALSE}
+data$Albumin_and_Globulin_Ratio[is.na(data$Albumin_and_Globulin_Ratio)] <- mean(data$Albumin_and_Globulin_Ratio, na.rm = TRUE)
+```
+
+The next step is to replace non-numeric values with numeric values for feature Gender. 
+
+```{r  echo=FALSE}
+str2int <- function(df) {
+  strings=sort(unique(df))
+  numbers=1:length(strings)
+  names(numbers)=strings
+  return(numbers[df])
+}
+data$Gender <- str2int(data$Gender)
+```
+
+Now check if there are any features which are highly co-related to each other and then remove them and retain the other features.
+
+```{r}
+tmp <- cor(data)
+tmp[!lower.tri(tmp)] <- 0
+data.new <- data[,!apply(tmp,2,function(x) any(x > 0.8))]
+data = data.new
+names(data)
+```
+
+We can see here that Total_Bilirubin has been eliminated from the list of features since it was very highly correlated with an existing feature.
+
+Now we convert the label variable into the 0 or 1 values that XGBoost expects for binary classification
+
+```{r}
+data$Dataset <- data$Dataset - 1
+```
+
+## Data Splitting
+
+Let us split the available data into train and test sets with a 75:25 ratio.
+
+```{r}
+sample_size <- floor(0.75 * nrow(data))
+set.seed(123)
+train_ind <- sample(seq_len(nrow(data)), size = sample_size)
+train <- data[train_ind, ]
+test <- data[-train_ind, ]
+train_label <- as.numeric(train$Dataset) #labels: if the person has liver disease or not
+test_label <- as.numeric(test$Dataset)
+```
+
+## Training the XGBoost model
+
+converting train and test sets to Formal class dgcMatrix (sparse numeric matrices) to use the XGBoost. DMatrix is an internal data structure used by XGBoost which is optimized for both memory efficiency and training speed.
+
+```{r}
+train <- as(as.matrix(train[ , -which(names(train) %in% c("Dataset"))]), "dgCMatrix")
+test <- as(as.matrix(test[ , -which(names(test) %in% c("Dataset"))]), "dgCMatrix")
+dtrain <- xgb.DMatrix(data = train, label=train_label) #External pointers of class 'xgb.DMatrix'
+dtest <- xgb.DMatrix(data = test, label=test_label)     
+watchlist <- list(train=dtrain, test=dtest)
+```
+
+Let's train the XGBoost Model. 
+
+We use xgb.train() function. It is an advance function to train XGBoost model
+Parameters used:
+max.depth: maximum depth of tree
+eta: controls learning rate (lower eta implies more robust but slow model)
+nthread: number of threads
+nrounds: lower eta implies larger values for nrounds
+early_stopping_rounds: If set to an integer k, training with a validation set will stop if the performance doesn't improve for k rounds. 
+
+```{r}
+xgbModel <- xgb.train(data = dtrain, max.depth = 100, eta = 0.001, 
+                      nthread = 2,  nround = 10000, 
+                      watchlist=watchlist, objective = "binary:logistic", early_stopping_rounds = 300)
+```
+
+## Predictions
+
+We remove labels from the full data set and use the model we trained to predict the labels, or in other words, predict if the patients have liver disease or not.
+
+```{r}
+fulldata <- as(as.matrix(data[ , -which(names(data) %in% c("Dataset"))]), "dgCMatrix")
+test_pred <- predict(xgbModel, newdata = fulldata)
+```
+
+# Results
+
+A confusion matrix is used to analyse the results of XGBoost model.
+```{r}
+confusionMatrix(as.factor(round(test_pred)), as.factor(data$Dataset))
+```
+
+We get an accuracy of 88.51% with sensitivity of 93.27%. Though there are some false positives (where we incorrectly predicted liver disease in a healthy patient), the rest of the values indicate that the model is perforiming well overall, and that if we had more training data (especially for non-liver patients) we could increase the accuracy and reduce the false positives.
+
+Analysis of what feautres were the most important to our model when it made the prediction of whether a patient has liver disease or not. 
+
+```{r}
+xgb.importance(colnames(fulldata), model = xgbModel) 
+```
+
+## Conclusion
+
+We have trained the model using XGBoost algorithm to diagnose whether a patient has liver disease or not based on a set of available data points. Our model achieved an accuracy of 83.7% which is pretty good.
+
+The dataset we used was not much big, with more data we can have more accurate predictions.
+
+# Acknowledgements
+
+This dataset was uploaded originally on the UCI ML Repository and is downloaded from https://www.kaggle.com/uciml/indian-liver-patient-records.
+
+We have used XGBoost library for training the prediction model. 
+Official documentation can be found here: https://github.com/dmlc/xgboost
+
+Also an introductory blog on XGBoost algorithm: https://towardsdatascience.com/https-medium-com-vishalmorde-xgboost-algorithm-long-she-may-rein-edd9f99be63d
