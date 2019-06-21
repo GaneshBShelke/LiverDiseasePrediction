@@ -154,7 +154,7 @@ A confusion matrix is used to analyse the results of XGBoost model.
 confusionMatrix(as.factor(round(test_pred)), as.factor(data$Dataset))
 ```
 
-We get an accuracy of 88.51% with sensitivity of 93.27%. Though there are some false positives (where we incorrectly predicted liver disease in a healthy patient), the rest of the values indicate that the model is perforiming well overall, and that if we had more training data (especially for non-liver patients) we could increase the accuracy and reduce the false positives.
+We get an accuracy of 83.7% with sensitivity of 93.27%. Though there are some false positives (where we incorrectly predicted liver disease in a healthy patient), the rest of the values indicate that the model is perforiming well overall, and that if we had more training data (especially for non-liver patients) we could increase the accuracy and reduce the false positives.
 
 Analysis of what feautres were the most important to our model when it made the prediction of whether a patient has liver disease or not. 
 
